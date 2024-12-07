@@ -14,6 +14,10 @@ mod tftp;
 struct Args {
     /// The configuration file
     pub configuration: PathBuf,
+
+    // The address to listen on
+    #[arg(short, long, default_value_t = String::from("[::1]:6969"))]
+    pub socket: String,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -28,7 +32,7 @@ fn main() -> anyhow::Result<()> {
     let configuration = BootEntry::from_str(&String::from_utf8(fs::read(args.configuration)?)?)?;
     let server = NetbootServer::new(configuration);
     block_on(async {
-        let addr = "[::1]:6969".parse()?;
+        let addr = args.socket.parse()?;
         let tftpd = TftpServerBuilder::with_handler(tftp::TftpHandler { server })
             .bind(addr)
             .build()
