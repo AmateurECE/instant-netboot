@@ -230,6 +230,10 @@ dependencies = [
 [[package]]
 name = "boot-loader-entries"
 version = "0.1.0"
+dependencies = [
+ "nom",
+ "thiserror 2.0.4",
+]
 
 [[package]]
 name = "bumpalo"
