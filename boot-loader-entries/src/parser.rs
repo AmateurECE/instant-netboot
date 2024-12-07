@@ -2,30 +2,34 @@ use std::path::Path;
 
 use nom::{
     bytes::complete::{tag_no_case, take_till1},
-    character::{
-        complete::{newline, space1},
-        is_newline,
-    },
+    character::complete::{line_ending, space1},
     combinator::opt,
     multi::separated_list0,
     sequence::{separated_pair, terminated},
-    IResult, Parser,
+    IResult, InputTakeAtPosition, Parser,
 };
 
 use crate::{BootEntry, EntryKey};
 
-/// Adapts a Fn(u8) to a Fn(char)
-fn with_byte(inner: impl Fn(u8) -> bool) -> impl Fn(char) -> bool {
-    move |c| match u8::try_from(c) {
-        Ok(b) => inner(b),
-        Err(_) => false,
-    }
+/// Matches a line ending
+fn is_line_ending(byte: char) -> bool {
+    byte == '\r' || byte == '\n'
+}
+
+/// Matches a sequence of non-space characters
+fn non_space(input: &str) -> IResult<&str, &str> {
+    input.split_at_position_complete(char::is_whitespace)
 }
 
 /// This entry attribute is a single path
 fn single_path_argument(input: &str) -> IResult<&str, &Path> {
-    let (rest, path) = take_till1(with_byte(is_newline))(input)?;
+    let (rest, path) = take_till1(is_line_ending)(input)?;
     Ok((rest, Path::new(path)))
+}
+
+/// This entry attribute is a space-separated list of tokens
+fn space_separated_list(input: &str) -> IResult<&str, Vec<&str>> {
+    separated_list0(space1, non_space)(input)
 }
 
 /// Parse a "linux" menu entry key and its associated value
@@ -42,12 +46,23 @@ fn devicetree(input: &str) -> IResult<&str, EntryKey> {
     Ok((input, EntryKey::Devicetree(path.into())))
 }
 
+/// Parse an "options" menu entry key and its associated value
+fn options(input: &str) -> IResult<&str, EntryKey> {
+    let (input, (_, options)) =
+        separated_pair(tag_no_case("options"), space1, space_separated_list)(input)?;
+    Ok((
+        input,
+        EntryKey::Options(options.into_iter().map(|o| o.to_string()).collect()),
+    ))
+}
+
 pub fn entry_key(input: &str) -> IResult<&str, EntryKey> {
-    linux.or(devicetree).parse(input)
+    linux.or(devicetree).or(options).parse(input)
 }
 
 pub fn boot_entry(input: &str) -> IResult<&str, BootEntry> {
-    let (input, keys) = terminated(separated_list0(newline, entry_key), opt(newline))(input)?;
+    let (input, keys) =
+        terminated(separated_list0(line_ending, entry_key), opt(line_ending))(input)?;
     Ok((input, BootEntry { keys }))
 }
 
@@ -65,6 +80,21 @@ mod test {
     fn devicetree_entry() {
         let (_, entry) = entry_key("devicetree /boot.dtb").unwrap();
         assert_eq!(entry, EntryKey::Devicetree("/boot.dtb".into()));
+    }
+
+    #[test]
+    fn options_entry() {
+        let (_, entry) =
+            entry_key("options root=UUID=6d3376e4-fc93-4509-95ec-a21d68011da2 quiet").unwrap();
+        assert_eq!(
+            entry,
+            EntryKey::Options(
+                vec!["root=UUID=6d3376e4-fc93-4509-95ec-a21d68011da2", "quiet"]
+                    .into_iter()
+                    .map(|s| s.to_string())
+                    .collect()
+            )
+        );
     }
 
     #[test]
@@ -132,6 +162,46 @@ mod test {
             entry,
             BootEntry {
                 keys: vec![EntryKey::Linux("/Image".into())]
+            }
+        );
+    }
+
+    #[test]
+    fn complete() {
+        let (_, entry) = boot_entry("linux /Image\ndevicetree /boot.dtb\noptions root=UUID=6d3376e4-fc93-4509-95ec-a21d68011da2 quiet\n").unwrap();
+        assert_eq!(
+            entry,
+            BootEntry {
+                keys: vec![
+                    EntryKey::Linux("/Image".into()),
+                    EntryKey::Devicetree("/boot.dtb".into()),
+                    EntryKey::Options(
+                        vec!["root=UUID=6d3376e4-fc93-4509-95ec-a21d68011da2", "quiet"]
+                            .into_iter()
+                            .map(|s| s.to_string())
+                            .collect()
+                    )
+                ]
+            }
+        );
+    }
+
+    #[test]
+    fn complete_with_crlf() {
+        let (_, entry) = boot_entry("linux /Image\r\ndevicetree /boot.dtb\r\noptions root=UUID=6d3376e4-fc93-4509-95ec-a21d68011da2 quiet\r\n").unwrap();
+        assert_eq!(
+            entry,
+            BootEntry {
+                keys: vec![
+                    EntryKey::Linux("/Image".into()),
+                    EntryKey::Devicetree("/boot.dtb".into()),
+                    EntryKey::Options(
+                        vec!["root=UUID=6d3376e4-fc93-4509-95ec-a21d68011da2", "quiet"]
+                            .into_iter()
+                            .map(|s| s.to_string())
+                            .collect()
+                    )
+                ]
             }
         );
     }

@@ -11,6 +11,7 @@ mod parser;
 pub enum EntryKey {
     Linux(PathBuf),
     Devicetree(PathBuf),
+    Options(Vec<String>),
 }
 
 impl EntryKey {
@@ -18,6 +19,7 @@ impl EntryKey {
         match self {
             EntryKey::Linux(path) => Some(path),
             EntryKey::Devicetree(path) => Some(path),
+            EntryKey::Options(_) => None,
         }
     }
 }
@@ -27,6 +29,7 @@ impl fmt::Display for EntryKey {
         match self {
             EntryKey::Linux(path) => write!(f, "linux {}", path.display()),
             EntryKey::Devicetree(path) => write!(f, "devicetree {}", path.display()),
+            EntryKey::Options(options) => write!(f, "options {}", options.join(" ")),
         }
     }
 }
