@@ -15,3 +15,4 @@ tracing-subscriber = "0.3.19"
 boot-loader-entries = { path = "../boot-loader-entries", version = "0.1.0" }
 regex = "1.11.1"
 thiserror = "2.0.4"
+clap = { version = "4.5.23", features = ["derive"] }
