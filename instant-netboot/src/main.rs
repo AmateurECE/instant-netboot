@@ -15,16 +15,24 @@ struct Args {
     /// The configuration file
     pub configuration: PathBuf,
 
-    // The address to listen on
+    /// The address to listen on
     #[arg(short, long, default_value_t = String::from("[::1]:6969"))]
     pub socket: String,
+
+    /// Verbose logging
+    #[arg(short, long, default_value_t = false)]
+    pub verbose: bool,
 }
 
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
 
     tracing_subscriber::fmt()
-        .with_max_level(tracing::Level::INFO)
+        .with_max_level(if args.verbose {
+            tracing::Level::DEBUG
+        } else {
+            tracing::Level::INFO
+        })
         .with_writer(std::io::stderr)
         .init();
 

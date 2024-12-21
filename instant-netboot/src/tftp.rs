@@ -29,9 +29,10 @@ impl async_tftp::server::Handler for TftpHandler {
 
     async fn read_req_open(
         &mut self,
-        _client: &SocketAddr,
+        client: &SocketAddr,
         path: &Path,
     ) -> Result<(Self::Reader, Option<u64>), packet::Error> {
+        tracing::debug!("{}: GET {}", client, path.display());
         Ok((self.server.tftp_get(path).await?, None))
     }
 
