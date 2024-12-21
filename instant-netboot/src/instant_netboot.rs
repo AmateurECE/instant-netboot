@@ -24,9 +24,22 @@ pub enum Error {
 /// Returns Ok(true) if the path is for a PXE configuration file. Returns Err if the path is
 /// invalid.
 fn is_pxe_config_path(path: &Path) -> Result<bool, Error> {
-    const PXE_PATH_PATTERN: LazyCell<Regex> =
-        LazyCell::new(|| Regex::new(r"^pxelinux\.cfg/[A-F0-9]{8}$").unwrap());
-    Ok(PXE_PATH_PATTERN.is_match(path.to_str().ok_or(Error::InvalidRequestPath)?))
+    let path = path
+        .strip_prefix(Path::new("pxelinux.cfg"))
+        .map_err(|_| Error::InvalidRequestPath)?
+        .to_str()
+        .ok_or(Error::InvalidRequestPath)?;
+
+    // An UUID
+    const UUID: LazyCell<Regex> = LazyCell::new(|| {
+        Regex::new(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$").unwrap()
+    });
+    // A hyphen-separated MAC address prefixed by 01 (this is the medium type--01 is Ethernet)
+    const MAC_ADDRESS: LazyCell<Regex> =
+        LazyCell::new(|| Regex::new(r"^01-([0-9a-f]{2}-){5}[0-9a-f]{2}$").unwrap());
+    // An IP address encoded in hexadecimal
+    const IP_ADDRESS: LazyCell<Regex> = LazyCell::new(|| Regex::new(r"^[A-F0-9]{1,8}$").unwrap());
+    Ok(UUID.is_match(path) || MAC_ADDRESS.is_match(path) || IP_ADDRESS.is_match(path))
 }
 
 /// Get the list of files mentioned in this boot entry.
