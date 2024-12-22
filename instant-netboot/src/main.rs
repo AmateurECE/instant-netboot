@@ -16,7 +16,7 @@ struct Args {
     pub configuration: PathBuf,
 
     /// The address to listen on
-    #[arg(short, long, default_value_t = String::from("[::1]:6969"))]
+    #[arg(short, long, default_value_t = String::from("0.0.0.0:6969"))]
     pub socket: String,
 
     /// Verbose logging
