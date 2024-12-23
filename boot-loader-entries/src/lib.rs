@@ -3,6 +3,9 @@ mod parser;
 /// Definitions and logic for UAPI-Group Boot Loader Specification -compliant boot loader entries.
 pub mod uapi;
 
+/// Definitions and logic for Syslinux configurations
+pub mod syslinux;
+
 #[derive(Clone, thiserror::Error, Debug, PartialEq, Eq)]
 pub enum Error {
     #[error("erroneous boot entry")]
