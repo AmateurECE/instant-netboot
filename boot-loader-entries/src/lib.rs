@@ -9,6 +9,7 @@ mod parser;
 /// A menu entry key, containing a fragment of configuration for the boot loader.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum EntryKey {
+    Title(String),
     Linux(PathBuf),
     Devicetree(PathBuf),
     Options(Vec<String>),
@@ -20,6 +21,7 @@ impl EntryKey {
             EntryKey::Linux(path) => Some(path),
             EntryKey::Devicetree(path) => Some(path),
             EntryKey::Options(_) => None,
+            EntryKey::Title(_) => None,
         }
     }
 }
@@ -30,6 +32,7 @@ impl fmt::Display for EntryKey {
             EntryKey::Linux(path) => write!(f, "linux {}", path.display()),
             EntryKey::Devicetree(path) => write!(f, "devicetree {}", path.display()),
             EntryKey::Options(options) => write!(f, "options {}", options.join(" ")),
+            EntryKey::Title(title) => write!(f, "title {}", title),
         }
     }
 }
