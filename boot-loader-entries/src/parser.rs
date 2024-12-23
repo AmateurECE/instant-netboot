@@ -7,7 +7,7 @@ use nom::{
     IResult, InputTakeAtPosition, Parser,
 };
 
-use crate::{BootEntry, EntryKey};
+use crate::uapi::{BootEntry, EntryKey};
 
 /// Matches a line ending
 fn is_line_ending(byte: char) -> bool {

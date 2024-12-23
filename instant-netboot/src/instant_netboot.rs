@@ -1,7 +1,7 @@
 use std::{cell::LazyCell, path::Path};
 
 use async_std::fs::File;
-use boot_loader_entries::BootEntry;
+use boot_loader_entries::uapi::{BootEntry, EntryKey};
 use futures::AsyncRead;
 use regex::Regex;
 

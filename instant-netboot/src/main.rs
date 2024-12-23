@@ -2,7 +2,7 @@ use std::{fs, path::PathBuf, str::FromStr};
 
 use async_std::task::block_on;
 use async_tftp::server::TftpServerBuilder;
-use boot_loader_entries::BootEntry;
+use boot_loader_entries::uapi::BootEntry;
 use clap::Parser;
 use instant_netboot::NetbootServer;
 use tracing::info;
