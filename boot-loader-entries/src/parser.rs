@@ -2,7 +2,7 @@ use nom::{
     bytes::complete::{tag_no_case, take_till1},
     character::complete::{line_ending, space1},
     combinator::opt,
-    multi::separated_list0,
+    multi::{many1, separated_list0},
     sequence::{separated_pair, terminated},
     IResult, InputTakeAtPosition, Parser,
 };
@@ -66,8 +66,10 @@ pub fn entry_key(input: &str) -> IResult<&str, EntryKey> {
 }
 
 pub fn boot_entry(input: &str) -> IResult<&str, BootEntry> {
-    let (input, keys) =
-        terminated(separated_list0(line_ending, entry_key), opt(line_ending))(input)?;
+    let (input, keys) = terminated(
+        separated_list0(many1(line_ending), entry_key),
+        opt(line_ending),
+    )(input)?;
     Ok((input, BootEntry { keys }))
 }
 
@@ -134,6 +136,34 @@ mod test {
             entry,
             BootEntry {
                 keys: vec![EntryKey::Linux("/Image".into())]
+            },
+        );
+    }
+
+    #[test]
+    fn multiple_newlines() {
+        let (_, entry) = boot_entry("linux /Image\n\ndevicetree /boot.dtb\n").unwrap();
+        assert_eq!(
+            entry,
+            BootEntry {
+                keys: vec![
+                    EntryKey::Linux("/Image".into()),
+                    EntryKey::Devicetree("/boot.dtb".into()),
+                ],
+            },
+        );
+    }
+
+    #[test]
+    fn multiple_crlf_newlines() {
+        let (_, entry) = boot_entry("linux /Image\r\n\r\ndevicetree /boot.dtb\r\n").unwrap();
+        assert_eq!(
+            entry,
+            BootEntry {
+                keys: vec![
+                    EntryKey::Linux("/Image".into()),
+                    EntryKey::Devicetree("/boot.dtb".into()),
+                ],
             },
         );
     }
