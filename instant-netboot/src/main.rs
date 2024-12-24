@@ -38,7 +38,7 @@ fn main() -> anyhow::Result<()> {
 
     info!("Serving configuration: {}", args.configuration.display());
     let configuration = BootEntry::from_str(&String::from_utf8(fs::read(args.configuration)?)?)?;
-    let server = NetbootServer::new(configuration);
+    let server = NetbootServer::new(configuration.try_into().unwrap());
     block_on(async {
         let addr = args.socket.parse()?;
         let tftpd = TftpServerBuilder::with_handler(tftp::TftpHandler { server })

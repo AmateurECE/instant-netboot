@@ -1,14 +1,16 @@
 use std::{cell::LazyCell, path::Path};
 
 use async_std::fs::File;
-use boot_loader_entries::uapi::{BootEntry, EntryKey};
+use boot_loader_entries::{syslinux, BootFile};
 use futures::AsyncRead;
 use regex::Regex;
 
 /// This netboot server is a "just add water" solution for netbooting Linux machines in
 /// development.
+#[derive(Debug)]
 pub struct NetbootServer {
-    configuration: BootEntry,
+    // TODO: Make this configurable.
+    configuration: syslinux::Label,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -24,11 +26,10 @@ pub enum Error {
 /// Returns Ok(true) if the path is for a PXE configuration file. Returns Err if the path is
 /// invalid.
 fn is_pxe_config_path(path: &Path) -> Result<bool, Error> {
-    let path = path
-        .strip_prefix(Path::new("pxelinux.cfg"))
-        .map_err(|_| Error::InvalidRequestPath)?
-        .to_str()
-        .ok_or(Error::InvalidRequestPath)?;
+    let Ok(path) = path.strip_prefix(Path::new("pxelinux.cfg")) else {
+        return Ok(false);
+    };
+    let path = path.to_str().ok_or(Error::InvalidRequestPath)?;
 
     // An UUID
     const UUID: LazyCell<Regex> = LazyCell::new(|| {
@@ -43,12 +44,17 @@ fn is_pxe_config_path(path: &Path) -> Result<bool, Error> {
 }
 
 /// Get the list of files mentioned in this boot entry.
-fn listed_files<'a>(boot_entry: &'a BootEntry) -> impl Iterator<Item = &'a Path> {
-    boot_entry.keys.iter().filter_map(|key| key.file())
+fn listed_files<'a>(label: &'a syslinux::Label) -> impl Iterator<Item = &'a Path> {
+    label
+        .directives
+        .iter()
+        .filter_map(|key| key.boot_file())
+        // TODO: Unwrap here
+        .chain([label.kernel.boot_file().unwrap()])
 }
 
 impl NetbootServer {
-    pub fn new(configuration: BootEntry) -> Self {
+    pub fn new(configuration: syslinux::Label) -> Self {
         Self { configuration }
     }
 
