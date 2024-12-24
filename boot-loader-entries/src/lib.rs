@@ -1,3 +1,5 @@
+use std::path::Path;
+
 mod parser;
 
 /// Definitions and logic for UAPI-Group Boot Loader Specification -compliant boot loader entries.
@@ -20,4 +22,10 @@ impl From<nom::Err<nom::error::Error<&str>>> for Error {
             nom::Err::Failure(error) => Error::ErroneousEntry(error.input.to_string()),
         }
     }
+}
+
+/// Trait to query associated file options on keys
+pub trait BootFile {
+    /// Request an associated file on a keyword/directive
+    fn boot_file(&self) -> Option<&Path>;
 }

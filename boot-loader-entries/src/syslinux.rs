@@ -1,7 +1,7 @@
 use core::fmt;
 use std::path::PathBuf;
 
-use crate::uapi;
+use crate::{uapi, BootFile};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ConfigurationConversionError;
@@ -20,6 +20,14 @@ impl fmt::Display for Kernel {
     }
 }
 
+impl BootFile for Kernel {
+    fn boot_file(&self) -> Option<&std::path::Path> {
+        match self {
+            Kernel::Kernel(image) => Some(image),
+        }
+    }
+}
+
 /// Directives that configure a boot label
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum LabelDirective {
@@ -30,6 +38,16 @@ pub enum LabelDirective {
     // TODO: This option is "dual-purpose"
     /// Kernel configuration options
     Append(Vec<String>),
+}
+
+impl BootFile for LabelDirective {
+    fn boot_file(&self) -> Option<&std::path::Path> {
+        match self {
+            LabelDirective::Initrd(initrd) => Some(initrd),
+            LabelDirective::Fdt(fdt) => Some(fdt),
+            LabelDirective::Append(_) => None,
+        }
+    }
 }
 
 impl TryFrom<uapi::EntryKey> for LabelDirective {

@@ -15,8 +15,8 @@ pub enum EntryKey {
     Options(Vec<String>),
 }
 
-impl EntryKey {
-    pub fn file<'a>(&'a self) -> Option<&'a Path> {
+impl crate::BootFile for EntryKey {
+    fn boot_file(&self) -> Option<&Path> {
         match self {
             EntryKey::Linux(path) => Some(path),
             EntryKey::Devicetree(path) => Some(path),
