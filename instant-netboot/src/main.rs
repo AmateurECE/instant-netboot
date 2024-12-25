@@ -22,6 +22,10 @@ struct Args {
     /// Verbose logging
     #[arg(short, long, default_value_t = false)]
     pub verbose: bool,
+
+    /// Enable NFS Auto-configuration
+    #[arg(short, long, default_value_t = false)]
+    pub nfs: bool,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -38,7 +42,7 @@ fn main() -> anyhow::Result<()> {
 
     info!("Serving configuration: {}", args.configuration.display());
     let configuration = BootEntry::from_str(&String::from_utf8(fs::read(args.configuration)?)?)?;
-    let server = NetbootServer::new(configuration.try_into().unwrap());
+    let server = NetbootServer::new(configuration.try_into().unwrap(), args.nfs);
     block_on(async {
         let addr = args.socket.parse()?;
         let tftpd = TftpServerBuilder::with_handler(tftp::TftpHandler { server })

@@ -1,4 +1,4 @@
-use std::{cell::LazyCell, path::Path};
+use std::{borrow::Cow, cell::LazyCell, path::Path};
 
 use async_std::fs::File;
 use boot_loader_entries::{syslinux, BootFile};
@@ -11,6 +11,8 @@ use regex::Regex;
 pub struct NetbootServer {
     // TODO: Make this configurable.
     configuration: syslinux::Label,
+
+    nfs_enabled: bool,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -43,6 +45,38 @@ fn is_pxe_config_path(path: &Path) -> Result<bool, Error> {
     Ok(UUID.is_match(path) || MAC_ADDRESS.is_match(path) || IP_ADDRESS.is_match(path))
 }
 
+/// Update the configuration with NFS parameters
+fn make_nfs_configuration(mut configuration: syslinux::Label) -> syslinux::Label {
+    // TODO: Make this configurable
+    let mut nfs_args = vec![
+        "root=/dev/nfs".to_string(),
+        "rw".to_string(),
+        "rootwait".to_string(),
+        "nfsroot=192.168.2.60:/mnt/Serve/rootfs/stereo-gadget,vers=4,tcp".to_string(),
+        "ip=dhcp".to_string(),
+    ];
+
+    // Have to find the existing APPEND directive, if it exists
+    if let Some(options) = configuration
+        .directives
+        .iter_mut()
+        .find(|k| matches!(k, syslinux::LabelDirective::Append(_)))
+    {
+        let syslinux::LabelDirective::Append(ref mut current_args) = options else {
+            // INVARIANT: We just sought the Append() directive.
+            unreachable!()
+        };
+        current_args.append(&mut nfs_args);
+    }
+    // Otherwise, add an APPEND directive
+    else {
+        configuration
+            .directives
+            .push(syslinux::LabelDirective::Append(nfs_args));
+    }
+    configuration
+}
+
 /// Get the list of files mentioned in this boot entry.
 fn listed_files<'a>(label: &'a syslinux::Label) -> impl Iterator<Item = &'a Path> {
     label
@@ -54,8 +88,11 @@ fn listed_files<'a>(label: &'a syslinux::Label) -> impl Iterator<Item = &'a Path
 }
 
 impl NetbootServer {
-    pub fn new(configuration: syslinux::Label) -> Self {
-        Self { configuration }
+    pub fn new(configuration: syslinux::Label, nfs_enabled: bool) -> Self {
+        Self {
+            configuration,
+            nfs_enabled,
+        }
     }
 
     /// Route a TFTP GET request to this server. If the path refers to a PXE configuration, the
@@ -67,8 +104,14 @@ impl NetbootServer {
         // If it's pxelinux.cfg/C0A802BA (or if it matches that pattern) generate a boot
         // configuration and return that.
         if is_pxe_config_path(path)? {
+            let configuration = if self.nfs_enabled {
+                Cow::Owned(make_nfs_configuration(self.configuration.clone()))
+            } else {
+                Cow::Borrowed(&self.configuration)
+            };
+
             return Ok(Box::new(futures::io::Cursor::new(
-                self.configuration.to_string(),
+                configuration.to_string(),
             )));
         }
 
