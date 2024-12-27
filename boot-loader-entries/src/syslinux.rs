@@ -15,7 +15,7 @@ pub enum Kernel {
 impl fmt::Display for Kernel {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Kernel::Kernel(image) => write!(f, "kernel {}", image.display()),
+            Kernel::Kernel(image) => write!(f, "KERNEL {}", image.display()),
         }
     }
 }
