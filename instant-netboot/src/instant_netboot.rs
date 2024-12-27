@@ -1,9 +1,44 @@
-use std::{borrow::Cow, cell::LazyCell, path::Path};
+use std::{
+    borrow::Cow,
+    cell::LazyCell,
+    net::IpAddr,
+    path::{Path, PathBuf},
+};
 
 use async_std::fs::File;
 use boot_loader_entries::{syslinux, BootFile};
 use futures::AsyncRead;
 use regex::Regex;
+use serde::Deserialize;
+
+/// The NFS version to configure the target for
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
+pub enum NfsVersion {
+    NFSv3,
+    NFSv4,
+}
+
+/// The IP configuration for the target
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
+pub enum TargetIpConfiguration {
+    Dhcp,
+    Static {},
+}
+
+/// NFS Configuration for instant-netboot
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
+pub struct NfsConfiguration {
+    /// The NFS host
+    pub host: IpAddr,
+    /// The NFS share to mount
+    pub share: PathBuf,
+    /// The NFS version to use
+    pub version: NfsVersion,
+    /// IP configuration for the target
+    pub target_ip: TargetIpConfiguration,
+    /// Whether the share should be mounted writable or not.
+    pub is_writable: bool,
+}
 
 /// This netboot server is a "just add water" solution for netbooting Linux machines in
 /// development.
@@ -11,8 +46,7 @@ use regex::Regex;
 pub struct NetbootServer {
     // TODO: Make this configurable.
     configuration: syslinux::Label,
-
-    nfs_enabled: bool,
+    nfs: Option<NfsConfiguration>,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -45,15 +79,46 @@ fn is_pxe_config_path(path: &Path) -> Result<bool, Error> {
     Ok(UUID.is_match(path) || MAC_ADDRESS.is_match(path) || IP_ADDRESS.is_match(path))
 }
 
+fn make_nfsroot_option(nfs: &NfsConfiguration) -> String {
+    let version = match nfs.version {
+        NfsVersion::NFSv3 => "3",
+        NfsVersion::NFSv4 => "4",
+    };
+    format!(
+        "nfsroot={}:{},vers={},tcp",
+        nfs.host,
+        nfs.share.display(),
+        version
+    )
+}
+
+fn make_ip_option(config: &TargetIpConfiguration) -> String {
+    // "ip=dhcp".to_string(),
+    let spec = match config {
+        TargetIpConfiguration::Dhcp => "dhcp",
+        TargetIpConfiguration::Static {} => {
+            // FIXME: Implement Static IP configuration
+            panic!("Static IP configuration is not currently implemented")
+        }
+    };
+    format!("ip={}", spec)
+}
+
 /// Update the configuration with NFS parameters
-fn make_nfs_configuration(mut configuration: syslinux::Label) -> syslinux::Label {
-    // TODO: Make this configurable
+fn make_nfs_configuration(
+    mut configuration: syslinux::Label,
+    nfs: &NfsConfiguration,
+) -> syslinux::Label {
     let mut nfs_args = vec![
         "root=/dev/nfs".to_string(),
-        "rw".to_string(),
+        if nfs.is_writable {
+            "rw".to_string()
+        } else {
+            "ro".to_string()
+        },
+        make_nfsroot_option(nfs),
         "rootwait".to_string(),
-        "nfsroot=192.168.2.60:/mnt/Serve/rootfs/stereo-gadget,vers=4,tcp".to_string(),
-        "ip=dhcp".to_string(),
+        make_ip_option(&nfs.target_ip),
     ];
 
     // Have to find the existing APPEND directive, if it exists
@@ -88,10 +153,17 @@ fn listed_files<'a>(label: &'a syslinux::Label) -> impl Iterator<Item = &'a Path
 }
 
 impl NetbootServer {
-    pub fn new(configuration: syslinux::Label, nfs_enabled: bool) -> Self {
+    pub fn new(configuration: syslinux::Label) -> Self {
         Self {
             configuration,
-            nfs_enabled,
+            nfs: None,
+        }
+    }
+
+    pub fn with_nfs(configuration: syslinux::Label, nfs: NfsConfiguration) -> Self {
+        Self {
+            configuration,
+            nfs: Some(nfs),
         }
     }
 
@@ -104,8 +176,8 @@ impl NetbootServer {
         // If it's pxelinux.cfg/C0A802BA (or if it matches that pattern) generate a boot
         // configuration and return that.
         if is_pxe_config_path(path)? {
-            let configuration = if self.nfs_enabled {
-                Cow::Owned(make_nfs_configuration(self.configuration.clone()))
+            let configuration = if let Some(nfs) = &self.nfs {
+                Cow::Owned(make_nfs_configuration(self.configuration.clone(), nfs))
             } else {
                 Cow::Borrowed(&self.configuration)
             };

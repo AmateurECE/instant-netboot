@@ -8,6 +8,7 @@ use crate::parser;
 
 /// A menu entry key, containing a fragment of configuration for the boot loader.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[cfg_attr(feature = "serde", derive(::serde::Deserialize, ::serde::Serialize))]
 pub enum EntryKey {
     Title(String),
     Linux(PathBuf),
@@ -55,6 +56,7 @@ impl FromStr for EntryKey {
 /// A boot loader entry for this system. This datum represents a "Type #1" (text-based) boot entry
 /// according to the [UAPI group Boot Loader Specification][https://uapi-group.org/specifications/specs/boot_loader_specification/]
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[cfg_attr(feature = "serde", derive(::serde::Deserialize, ::serde::Serialize))]
 pub struct BootEntry {
     pub keys: Vec<EntryKey>,
 }
@@ -80,6 +82,26 @@ impl FromStr for BootEntry {
                 "trailing garbage: \"{}\"",
                 rest
             ))),
+        }
+    }
+}
+
+/// Modules and routines meant to aid deserializing UAPI bootloader entries using serde field
+/// attributes.
+#[cfg(feature = "serde")]
+pub mod serde {
+    /// Deserialize a boot entry using the [FromStr] implementation on [BootEntry].
+    pub mod from_str {
+        use crate::uapi;
+        use serde::de;
+        use std::str::FromStr;
+
+        pub fn deserialize<'de, D>(deserializer: D) -> Result<uapi::BootEntry, D::Error>
+        where
+            D: de::Deserializer<'de>,
+        {
+            let value: String = de::Deserialize::deserialize(deserializer)?;
+            uapi::BootEntry::from_str(&value).map_err(de::Error::custom)
         }
     }
 }
