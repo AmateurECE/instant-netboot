@@ -33,7 +33,6 @@ fn main() -> anyhow::Result<()> {
         .with_writer(std::io::stderr)
         .init();
 
-    dbg!(&config.tftp.pxe);
     let boot_configuration = config.tftp.pxe.try_into().unwrap();
     let server = match config.nfs {
         Some(nfs) => NetbootServer::with_nfs(boot_configuration, nfs),

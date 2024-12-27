@@ -14,19 +14,24 @@ use serde::Deserialize;
 /// The NFS version to configure the target for
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
 pub enum NfsVersion {
+    #[serde(rename = "3")]
     NFSv3,
+    #[serde(rename = "4")]
     NFSv4,
 }
 
 /// The IP configuration for the target
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub enum TargetIpConfiguration {
     Dhcp,
+    // TODO: Support static IP configuration
     Static {},
 }
 
 /// NFS Configuration for instant-netboot
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub struct NfsConfiguration {
     /// The NFS host
     pub host: IpAddr,
