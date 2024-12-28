@@ -32,6 +32,7 @@ pub enum TargetIpConfiguration {
 /// NFS Configuration for instant-netboot
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
 #[serde(rename_all = "kebab-case")]
+// TODO: Support USB Gadget Ethernet devices
 pub struct NfsConfiguration {
     /// The NFS host
     pub host: IpAddr,
@@ -49,7 +50,7 @@ pub struct NfsConfiguration {
 /// development.
 #[derive(Debug)]
 pub struct NetbootServer {
-    // TODO: Make this configurable.
+    // TODO: Make the type of boot loader entry configurable.
     configuration: syslinux::Label,
     nfs: Option<NfsConfiguration>,
 }
@@ -102,7 +103,6 @@ fn make_ip_option(config: &TargetIpConfiguration) -> String {
     let spec = match config {
         TargetIpConfiguration::Dhcp => "dhcp",
         TargetIpConfiguration::Static {} => {
-            // FIXME: Implement Static IP configuration
             panic!("Static IP configuration is not currently implemented")
         }
     };
@@ -153,7 +153,7 @@ fn listed_files<'a>(label: &'a syslinux::Label) -> impl Iterator<Item = &'a Path
         .directives
         .iter()
         .filter_map(|key| key.boot_file())
-        // TODO: Unwrap here
+        // TODO: Proper use of a "never pattern" in fn listed_files
         .chain([label.kernel.boot_file().unwrap()])
 }
 

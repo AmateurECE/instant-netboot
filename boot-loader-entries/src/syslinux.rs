@@ -35,7 +35,7 @@ pub enum LabelDirective {
     Initrd(PathBuf),
     /// A device tree blob
     Fdt(PathBuf),
-    // TODO: This option is "dual-purpose"
+    // TODO: The Append option is actually a "dual-purpose" directive, not a "label directive"
     /// Kernel configuration options
     Append(Vec<String>),
 }
@@ -98,7 +98,7 @@ pub struct Configuration {
     pub labels: Vec<Label>,
 }
 
-// TODO: This should probably be on the Configuration, instead of the Label.
+// TODO: We probably care more about morphing Configurations than individual BootEntry/Label(s).
 impl TryFrom<uapi::BootEntry> for Label {
     type Error = ConfigurationConversionError;
     fn try_from(value: uapi::BootEntry) -> Result<Self, Self::Error> {
@@ -107,7 +107,7 @@ impl TryFrom<uapi::BootEntry> for Label {
         let directives = value
             .keys
             .into_iter()
-            // TODO: The use of filter_map here will just result in discarding all invalid entries.
+            // TODO: The use of filter_map in TryFrom<BootEntry> will discard all invalid entries.
             // Is that really what we want?
             .filter_map(|key| match key {
                 uapi::EntryKey::Title(title) => {
