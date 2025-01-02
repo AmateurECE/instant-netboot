@@ -7,7 +7,10 @@ use instant_netboot::NetbootServer;
 use tracing::info;
 
 mod config;
+mod fs;
 mod instant_netboot;
+mod nfs;
+mod tar;
 mod tftp;
 
 #[derive(clap::Parser)]
@@ -39,11 +42,17 @@ fn main() -> anyhow::Result<()> {
         None => NetbootServer::new(boot_configuration),
     };
     block_on(async {
+        // mount -t nfs -o nolocks,vers=3,tcp,port=12000,mountport=12000,soft 127.0.0.1:/ mnt/
+        // let listener = NFSTcpListener::bind(&format!("127.0.0.1:11111"), DemoFS::default())
+        //     .await
+        //     .unwrap();
+        // info!("NFSv3 server listening on...");
+        // listener.handle_forever().await.unwrap();
         let tftpd = TftpServerBuilder::with_handler(tftp::TftpHandler { server })
             .bind(config.tftp.socket)
             .build()
             .await?;
-        info!("Listening on {}", config.tftp.socket);
+        info!("TFTP Server Listening on {}", config.tftp.socket);
         tftpd.serve().await?;
         Ok(())
     })
