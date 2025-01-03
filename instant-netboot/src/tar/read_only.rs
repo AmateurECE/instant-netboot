@@ -31,6 +31,10 @@ fn make_root() -> fs::File {
         parent: None,
         attributes: fs::Metadata {
             file_type: fs::FileType::Directory,
+            mode: 0o000,
+            uid: 0,
+            gid: 0,
+            mtime: 0,
         },
         link_name: None,
         path: PathBuf::from("/"),
@@ -78,12 +82,22 @@ where
         let header = entry.header();
         let file_type = header.entry_type().into();
         let link_name = header.link_name()?.map(|p| p.into_owned().into());
+        let mode = header.mode()?;
+        let uid = header.uid().unwrap_or(0);
+        let gid = header.gid().unwrap_or(0);
+        let mtime = header.mtime().unwrap_or(0);
 
         index.insert(
             next_id,
             fs::File {
                 parent,
-                attributes: fs::Metadata { file_type },
+                attributes: fs::Metadata {
+                    file_type,
+                    mode,
+                    uid,
+                    gid,
+                    mtime,
+                },
                 link_name,
                 path: path.into_owned().into(),
             },

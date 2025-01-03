@@ -16,6 +16,10 @@ pub enum FileType {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Metadata {
     pub file_type: FileType,
+    pub mode: u32,
+    pub uid: u64,
+    pub gid: u64,
+    pub mtime: u64,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -28,7 +32,7 @@ pub enum FileError {
 
 impl From<io::Error> for FileError {
     fn from(value: io::Error) -> Self {
-        todo!()
+        FileError::Io(value)
     }
 }
 
