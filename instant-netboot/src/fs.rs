@@ -9,6 +9,7 @@ pub type FileId = u64;
 pub enum FileType {
     Regular,
     Directory,
+    Link,
 }
 
 /// Filesystem-independent file metadata.

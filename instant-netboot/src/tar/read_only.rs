@@ -7,7 +7,6 @@ use std::{
 };
 
 use async_std::stream::StreamExt;
-use async_tar::Entry;
 use futures::AsyncRead;
 
 use crate::fs;
@@ -16,9 +15,11 @@ const ROOT_ID: fs::FileId = 1u64;
 
 impl From<async_tar::EntryType> for fs::FileType {
     fn from(value: async_tar::EntryType) -> Self {
+        use async_tar::EntryType;
         match value {
-            async_tar::EntryType::Regular => fs::FileType::Regular,
-            async_tar::EntryType::Directory => fs::FileType::Directory,
+            EntryType::Regular => fs::FileType::Regular,
+            EntryType::Directory => fs::FileType::Directory,
+            EntryType::Link | EntryType::Symlink => fs::FileType::Link,
             _ => todo!(),
         }
     }
@@ -74,14 +75,16 @@ where
         next_id += 1;
         let path = entry.path()?;
         let parent = Some(find_parent_id(&index, &path));
-        let file_type = entry.header().entry_type().into();
+        let header = entry.header();
+        let file_type = header.entry_type().into();
+        let link_name = header.link_name()?.map(|p| p.into_owned().into());
 
         index.insert(
             next_id,
             fs::File {
                 parent,
                 attributes: fs::Metadata { file_type },
-                link_name: None,
+                link_name,
                 path: path.into_owned().into(),
             },
         );
@@ -169,13 +172,20 @@ where
         Ok(entry)
     }
 
-    pub fn readdir<'a>(&'a self, id: &'a fs::FileId) -> impl Iterator<Item = &'a fs::File> + 'a {
+    pub fn readdir(&self, id: &fs::FileId) -> Vec<fs::File> {
         // TODO: Right now, this will return an empty iterator if id doesn't exist, or if it's not
         // a directory. If we implement a trait for attributes, we can be smarter here.
-        self.index.values().filter(|f| {
-            let Some(parent) = f.parent else { return false };
-            parent == *id
-        })
+        let mut entries = self
+            .index
+            .values()
+            .filter(|f| {
+                let Some(parent) = f.parent else { return false };
+                parent == *id
+            })
+            .map(Clone::clone)
+            .collect::<Vec<fs::File>>();
+        entries.sort();
+        entries
     }
 
     pub fn readlink(&self, id: &fs::FileId) -> Result<Option<&Path>, fs::FileError> {
