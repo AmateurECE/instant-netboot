@@ -25,9 +25,15 @@ pub enum FileError {
     Io(io::Error),
 }
 
+impl From<io::Error> for FileError {
+    fn from(value: io::Error) -> Self {
+        todo!()
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct File {
-    pub parent: FileId,
+    pub parent: Option<FileId>,
     pub attributes: Metadata,
     pub link_name: Option<PathBuf>,
     pub path: PathBuf,
