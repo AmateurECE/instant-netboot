@@ -18,9 +18,3 @@ thiserror = "2.0.4"
 clap = { version = "4.5.23", features = ["derive"] }
 serde = { version = "1.0.216", features = ["derive"] }
 serde_yaml = "0.9.34"
-nfsserve = "0.10.2"
-flate2 = { version = "1.0.35", features = ["zlib"] }
-async-tar = "0.5.0"
-
-[dev-dependencies]
-async-std = { version = "1.13.0", features = ["attributes"] }
